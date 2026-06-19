@@ -570,6 +570,8 @@ fn handle_insert_normal(app: &mut App, key: KeyEvent) {
             app.draft_end();
             app.draft.set_input_mode(DialogInputMode::Insert);
         }
+        KeyCode::Char('^') => app.draft_home(),
+        KeyCode::Char('$') => app.draft_end(),
         _ => {}
     }
 }
