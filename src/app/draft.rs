@@ -206,6 +206,27 @@ impl DraftState {
         }
     }
 
+    /// Delete a word backward
+    pub fn delete_word_backward(&mut self) {
+        let s = &self.text;
+        let end = self.cursor.byte();
+        if end == 0 {
+            return;
+        }
+        let mut start = prev_char_boundary(s, end);
+        while start > 0 && s.as_bytes()[start].is_ascii_whitespace() {
+            start = prev_char_boundary(s, start);
+        }
+        while start > 0 && !s.as_bytes()[prev_char_boundary(s, start)].is_ascii_whitespace() {
+            start = prev_char_boundary(s, start);
+        }
+        if start < end {
+            self.text.drain(start..end);
+            self.reset_autocomplete();
+            self.cursor = DraftCursor(start);
+        }
+    }
+
     /// Move to the end of the current or next word (`e`).
     pub fn move_word_end(&mut self) {
         let s = &self.text;
@@ -328,6 +349,10 @@ impl App {
     pub fn draft_delete_word_forward(&mut self) {
         self.draft.delete_word_forward();
     }
+
+    pub fn draft_delete_word_backward(&mut self) {
+        self.draft.delete_word_backward();
+    }
 }
 
 pub(super) fn prev_char_boundary(s: &str, i: usize) -> usize {
@@ -418,5 +443,36 @@ mod tests {
         assert_eq!(app.draft.cursor(), 3);
         app.draft_backspace();
         assert_eq!(app.draft.text(), "caé");
+    }
+
+    #[test]
+    fn draft_delete_backward() {
+        let cases = vec![
+            ("hello world", "hello ", 6),
+            ("hello", "", 0),
+            ("hello    ", "", 0),
+            ("", "", 0),
+        ];
+
+        for (input, expected, expected_cursor_pos) in cases {
+            let mut app = build_app("");
+            app.draft_set(input.into());
+            app.draft_end();
+            app.draft_delete_word_backward();
+            assert_eq!(app.draft.text(), expected);
+            assert_eq!(app.draft.cursor(), expected_cursor_pos);
+        }
+    }
+
+    #[test]
+    fn draft_delete_backward_cursor_pos_in_middle() {
+        let mut app = build_app("");
+        app.draft_set("one two three".into());
+        for _ in 0..6 {
+            app.draft_left();
+        }
+        app.draft_delete_word_backward();
+        assert_eq!(app.draft.text(), "one  three");
+        assert_eq!(app.draft.cursor(), 4);
     }
 }

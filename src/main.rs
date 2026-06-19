@@ -1,6 +1,7 @@
 #![warn(clippy::unwrap_used)]
 
 use std::io;
+use std::ops::ControlFlow;
 use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
@@ -317,32 +318,49 @@ enum DraftEffect {
 /// to the draft. Centralizes the canonical key list so insert/search/prompt
 /// modes stay in sync as bindings evolve.
 fn apply_to_draft(app: &mut App, key: KeyEvent) -> DraftEffect {
-    match key.code {
-        KeyCode::Backspace => {
+    match (key.code, key.modifiers) {
+        (KeyCode::Backspace | KeyCode::Char('w'), KeyModifiers::CONTROL) => {
+            app.draft_delete_word_backward();
+            DraftEffect::TextChanged
+        }
+        (KeyCode::Backspace, KeyModifiers::NONE) => {
             app.draft_backspace();
             DraftEffect::TextChanged
         }
-        KeyCode::Delete => {
+
+        (KeyCode::Delete, KeyModifiers::NONE) => {
             app.draft_delete_forward();
             DraftEffect::TextChanged
         }
-        KeyCode::Char(c) => {
+
+        (KeyCode::Char(c), KeyModifiers::NONE | KeyModifiers::SHIFT) => {
             app.draft_insert_char(c);
             DraftEffect::TextChanged
         }
-        KeyCode::Left => {
+
+        (KeyCode::Left, KeyModifiers::CONTROL) => {
+            app.draft_word_backward();
+            DraftEffect::CursorMoved
+        }
+        (KeyCode::Left, KeyModifiers::NONE) => {
             app.draft_left();
             DraftEffect::CursorMoved
         }
-        KeyCode::Right => {
+
+        (KeyCode::Right, KeyModifiers::CONTROL) => {
+            app.draft_word_forward();
+            DraftEffect::CursorMoved
+        }
+        (KeyCode::Right, KeyModifiers::NONE) => {
             app.draft_right();
             DraftEffect::CursorMoved
         }
-        KeyCode::Home => {
+
+        (KeyCode::Home, KeyModifiers::NONE) => {
             app.draft_home();
             DraftEffect::CursorMoved
         }
-        KeyCode::End => {
+        (KeyCode::End, KeyModifiers::NONE) => {
             app.draft_end();
             DraftEffect::CursorMoved
         }
@@ -392,6 +410,8 @@ fn handle_insert_normal(app: &mut App, key: KeyEvent) {
             app.draft_end();
             app.draft.set_input_mode(DialogInputMode::Insert);
         }
+        KeyCode::Char('^') => app.draft_home(),
+        KeyCode::Char('$') => app.draft_end(),
         _ => {}
     }
 }
