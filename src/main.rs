@@ -1,7 +1,6 @@
 #![warn(clippy::unwrap_used)]
 
 use std::io;
-use std::ops::ControlFlow;
 use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
